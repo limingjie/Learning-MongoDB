@@ -103,3 +103,94 @@ There are also several reserved database names, which you can access but which h
   Sharded MongoDB clusters (see [Link to Come]), use the config database to store information about each shard.
 
 By concatenating a database name with a collection in that database you can get a fully qualified collection name called a namespace. For instance, if you are using the blog.posts collection in the cms database, the namespace of that collection would be cms.blog.posts. Namespaces are limited to 121 bytes in length and, in practice, should be fewer than 100 bytes long. For more on namespaces and the internal representation of collections in MongoDB, see [Link to Come].
+
+### Getting and Starting MongoDB
+
+On Windows
+
+- When run with no arguments, mongod will use the default data directory, /data/db/ (or \data\db\ on the current volume on Windows). If the data directory does not already exist or is not writable, the server will fail to start. It is important to create the data directory (e.g., mkdir -p /data/db/) and to make sure your user has permission to write to the directory before starting MongoDB.
+
+- You can safely stop mongod by typing Ctrl-C in the shell that is running the server.
+
+```ShellSession
+# If the data directory does not already exist or is not writable, the server will fail to start.
+C:\Users\mingjli>mkdir c:\data\db
+C:\Users\mingjli>mongod
+2017-08-07T19:18:16.728+0800 I CONTROL  [initandlisten] MongoDB starting : pid=11144 port=27017 dbpath=C:\data\db\ 64-bit host=MINGJLI-CN
+2017-08-07T19:18:16.730+0800 I CONTROL  [initandlisten] targetMinOS: Windows 7/Windows Server 2008 R2
+2017-08-07T19:18:16.731+0800 I CONTROL  [initandlisten] db version v3.4.6
+2017-08-07T19:18:16.731+0800 I CONTROL  [initandlisten] git version: c55eb86ef46ee7aede3b1e2a5d184a7df4bfb5b5
+2017-08-07T19:18:16.731+0800 I CONTROL  [initandlisten] OpenSSL version: OpenSSL 1.0.1u-fips  22 Sep 2016
+2017-08-07T19:18:16.731+0800 I CONTROL  [initandlisten] allocator: tcmalloc
+2017-08-07T19:18:16.731+0800 I CONTROL  [initandlisten] modules: none
+2017-08-07T19:18:16.731+0800 I CONTROL  [initandlisten] build environment:
+2017-08-07T19:18:16.731+0800 I CONTROL  [initandlisten]     distmod: 2008plus-ssl
+2017-08-07T19:18:16.732+0800 I CONTROL  [initandlisten]     distarch: x86_64
+2017-08-07T19:18:16.732+0800 I CONTROL  [initandlisten]     target_arch: x86_64
+2017-08-07T19:18:16.733+0800 I CONTROL  [initandlisten] options: {}
+2017-08-07T19:18:16.738+0800 I STORAGE  [initandlisten] wiredtiger_open config: create,cache_size=7627M,session_max=20000,eviction=(threads_min=4,threads_max=4),config_base=false,statistics=(fast),log=(enabled=true,archive=true,path=journal,compressor=snappy),file_manager=(close_idle_time=100000),checkpoint=(wait=60,log_size=2GB),statistics_log=(wait=0),
+2017-08-07T19:18:16.820+0800 I CONTROL  [initandlisten]
+2017-08-07T19:18:16.821+0800 I CONTROL  [initandlisten] ** WARNING: Access control is not enabled for the database.
+2017-08-07T19:18:16.821+0800 I CONTROL  [initandlisten] **          Read and write access to data and configuration is unrestricted.
+2017-08-07T19:18:16.822+0800 I CONTROL  [initandlisten]
+2017-08-07T19:18:21.163+0800 I FTDC     [initandlisten] Initializing full-time diagnostic data capture with directory 'C:/data/db/diagnostic.data'
+2017-08-07T19:18:21.192+0800 I INDEX    [initandlisten] build index on: admin.system.version properties: { v: 2, key: {version: 1 }, name: "incompatible_with_version_32", ns: "admin.system.version" }2017-08-07T19:18:21.192+0800 I INDEX    [initandlisten]          building index using bulk method; build may temporarily use up to 500 megabytes of RAM
+2017-08-07T19:18:21.199+0800 I INDEX    [initandlisten] build index done.  scanned 0 total records. 0 secs
+2017-08-07T19:18:21.204+0800 I COMMAND  [initandlisten] setting featureCompatibilityVersion to 3.4
+2017-08-07T19:18:21.206+0800 I NETWORK  [thread1] waiting for connections on port 27017
+```
+
+### Introduction to the MongoDB Shell
+
+MongoDB comes with a JavaScript shell that allows interaction with a MongoDB instance from the command line. The shell is useful for performing administrative functions, inspecting a running instance, or just exploring MongoDB. The mongo shell is a crucial tool for using MongoDB. We use the mongo shell extensively throughout the rest of the text.
+
+#### Running the Shell
+
+```ShellSession
+C:\Users\mingjli>mongo
+MongoDB shell version v3.4.6
+connecting to: mongodb://127.0.0.1:27017
+MongoDB server version: 3.4.6
+Welcome to the MongoDB shell.
+For interactive help, type "help".
+For more comprehensive documentation, see
+        http://docs.mongodb.org/
+Questions? Try the support group
+        http://groups.google.com/group/mongodb-user
+Server has startup warnings:
+2017-08-07T19:18:16.820+0800 I CONTROL  [initandlisten]
+2017-08-07T19:18:16.821+0800 I CONTROL  [initandlisten] ** WARNING: Access control is not enabled for the database.
+2017-08-07T19:18:16.821+0800 I CONTROL  [initandlisten] **          Read and write access to data and configuration is unrestricted.
+2017-08-07T19:18:16.822+0800 I CONTROL  [initandlisten]
+> x=200
+200
+> x/5;
+40
+> x/5
+40
+> Math.sin(Math.PI/2)
+1
+> new Date("2010/1/1")
+ISODate("2009-12-31T16:00:00Z")
+> "Hello world!".replace("world", "whatever")
+Hello whatever!
+> function factorial(n) {
+... if (n <= 1) return 1;
+... return n * factorial(n-1);
+... }
+> factorial(5)
+120
+>
+```
+
+#### A MongoDB Client
+
+```ShellSession
+> db
+test
+> use video
+switched to db video
+> db
+video
+>
+```
