@@ -1,5 +1,26 @@
 # Learning MongoDB
 
+<!-- TOC -->
+
+- [Learning MongoDB](#learning-mongodb)
+    - [Chapter 1. Introduction](#chapter-1-introduction)
+        - [Ease of Use](#ease-of-use)
+        - [Designed to Scale](#designed-to-scale)
+        - [Rich with Features...](#rich-with-features)
+    - [Chapter 2. Getting Started](#chapter-2-getting-started)
+        - [Documents](#documents)
+        - [Collections](#collections)
+            - [Dynamic Schemas](#dynamic-schemas)
+            - [Naming](#naming)
+                - [Subcollections](#subcollections)
+        - [Databases](#databases)
+        - [Getting and Starting MongoDB](#getting-and-starting-mongodb)
+        - [Introduction to the MongoDB Shell](#introduction-to-the-mongodb-shell)
+            - [Running the Shell](#running-the-shell)
+            - [A MongoDB Client](#a-mongodb-client)
+
+<!-- /TOC -->
+
 ## Chapter 1. Introduction
 
 ### Ease of Use
