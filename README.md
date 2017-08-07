@@ -36,3 +36,70 @@ MongoDB is powerful but easy to get started with. In this chapter we’ll introd
 - **A single instance of MongoDB can host multiple independent databases, each of which can have its own collections**.
 - **Every document has a special key, "_id", that is unique within a collection**.
 - MongoDB is distributed with a simple but powerful tool called the **mongo shell**. The mongo shell provides built-in support for **administering MongoDB instances** and **manipulating data using the MongoDB query language**. It is also **a fully-functional JavaScript interpreter** which enables users to create and load their own scripts for a variety of purposes.
+
+### Documents
+
+Document: an ordered set of keys with associated values.
+
+- The keys in a document are strings. **Any UTF-8 character is allowed** in a key, with a few notable **exceptions**:
+  - Keys must not contain the **character \0 (the null character)**. This character is used to signify the end of a key.
+  - **The . and $ characters** have some special properties and should be used only in certain circumstances, as described in later chapters. In general, they should be considered reserved, and drivers will complain if they are used inappropriately.
+- MongoDB is **type-sensitive** and **case-sensitive**, for **both key and values**.
+- A final important thing to note is that documents in MongoDB **cannot contain duplicate keys**.
+- TODO ? - Key/value pairs in documents are ordered: {"x" : 1, "y" : 2} is not the same as {"y" : 2, "x" : 1}. Field order does not usually matter and you should not design your schema to depend on a certain ordering of fields (MongoDB may reorder them). This text will note the special cases where field order is important.
+- TODO ? - In some programming languages the default representation of a document does not even maintain ordering (e.g., dictionaries in Python and hashes in Perl or Ruby 1.8). Drivers for those languages usually have some mechanism for specifying documents with ordering, when necessary.
+
+### Collections
+
+A collection is a group of documents. If a document is the MongoDB analog of a row in a relational database, then a collection can be thought of as the analog to a table.
+
+#### Dynamic Schemas
+
+Collections have dynamic schemas. This means that the documents within a single collection can have any number of different “shapes.” For example, both of the following documents could be stored in a single collection:
+
+```json
+{"greeting" : "Hello, world!", "views": 3}
+{"signoff": "Good night, and good luck"}
+```
+
+#### Naming
+
+A collection is identified by its name. Collection names can be any UTF-8 string, with a few restrictions:
+
+- The **empty string ("")** is not a valid collection name.
+- Collection names may not contain **the character \0 (the null character)** because this delineates the end of a collection name.
+- You should not create any collections that **start with system.**, a prefix reserved for internal collections. For example, the system.users collection contains the database’s users, and the system.namespaces collection contains information about all of the database’s collections.
+- User-created collections should not contain the **reserved character $** in the name. The various drivers available for the database do support using $ in collection names because some system-generated collections contain it. You should not use $ in a name unless you are accessing one of these collections.
+
+##### Subcollections
+
+One convention for organizing collections is to use namespaced subcollections separated by the . character. For example, an application containing a blog might have a collection named blog.posts and a separate collection named blog.authors. This is for organizational purposes only—there is no relationship between the blog collection (it doesn’t even have to exist) and its “children.”
+
+### Databases
+
+In addition to grouping documents by collection, MongoDB groups collections into databases. A single instance of MongoDB can host several databases, each grouping together zero or more collections. A database has its own permissions, and each database is stored in separate files on disk. A good rule of thumb is to store all data for a single application in the same database. Separate databases are useful when storing data for several application or users on the same MongoDB server.
+
+Like collections, databases are identified by name. Database names can be any UTF-8 string, with the following restrictions:
+
+- The empty string ("") is not a valid database name.
+- A database name cannot contain any of these characters: /, \, ., ", *, <, >, :, |, ?, $, (a single space), or \0 (the null character). Basically, stick with alphanumeric ASCII.
+- Database names are case-sensitive, even on non-case-sensitive filesystems. To keep things simple, try to just use lowercase characters.
+- Database names are limited to a maximum of 64 bytes.
+
+One thing to remember about database names is that they will actually end up as files on your filesystem. This explains why many of the previous restrictions exist in the first place.
+
+There are also several reserved database names, which you can access but which have special semantics. These are as follows:
+
+- *admin*
+
+  The admin database plays a role in authentication and authorization. In addition, access to this database is required for some administrative operations. See [Link to Come] for more information about the admin database.
+
+- *local*
+
+  This database stores data specific to a single server. In replica sets, local stores data used in the replication process. The local database itself is never replicated. See [Link to Come] for more information about replication and the local database).
+
+- *config*
+
+  Sharded MongoDB clusters (see [Link to Come]), use the config database to store information about each shard.
+
+By concatenating a database name with a collection in that database you can get a fully qualified collection name called a namespace. For instance, if you are using the blog.posts collection in the cms database, the namespace of that collection would be cms.blog.posts. Namespaces are limited to 121 bytes in length and, in practice, should be fewer than 100 bytes long. For more on namespaces and the internal representation of collections in MongoDB, see [Link to Come].
