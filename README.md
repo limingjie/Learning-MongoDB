@@ -17,6 +17,9 @@
     - [Introduction to the MongoDB Shell](#introduction-to-the-mongodb-shell)
         - [Running the Shell](#running-the-shell)
         - [A MongoDB Client](#a-mongodb-client)
+        - [Basic Operations with the Shell](#basic-operations-with-the-shell)
+            - [Create](#create)
+            - [Read](#read)
 
 <!-- /TOC -->
 
@@ -212,5 +215,56 @@ test
 switched to db video
 > db
 video
+>
+```
+
+#### Basic Operations with the Shell
+
+We can use the four basic operations, create, read, update, and delete (CRUD) to manipulate and view data in the shell.
+
+##### Create
+
+The **insertOne** function adds a document to a collection.
+
+```ShellSession
+> movie = {"title" : "Star Wars: Episode IV - A New Hope",
+... "director" : "George Lucas",
+... "year" : 1977}
+{
+        "title" : "Star Wars: Episode IV - A New Hope",
+        "director" : "George Lucas",
+        "year" : 1977
+}
+> db.movies.insertOne(movie)
+{
+        "acknowledged" : true,
+        "insertedId" : ObjectId("5988534267642c6d7d3f5358")
+}
+> db.movies.find()
+{ "_id" : ObjectId("5988534267642c6d7d3f5358"), "title" : "Star Wars: Episode IV - A New Hope", "director" : "George Lucas", "year" : 1977 }
+>
+```
+
+##### Read
+
+**find** and **findOne** can be used to query a collection.
+
+```ShellSession
+> db.movies.findOne()
+{
+        "_id" : ObjectId("5988534267642c6d7d3f5358"),
+        "title" : "Star Wars: Episode IV - A New Hope",
+        "director" : "George Lucas",
+        "year" : 1977
+}
+> db.movies.findOne({'title': /^Star/})
+{
+        "_id" : ObjectId("5988534267642c6d7d3f5358"),
+        "title" : "Star Wars: Episode IV - A New Hope",
+        "director" : "George Lucas",
+        "year" : 1977
+}
+> db.movies.findOne({'title': /^Avatar/})
+null
 >
 ```
