@@ -20,6 +20,18 @@
         - [Basic Operations with the Shell](#basic-operations-with-the-shell)
             - [Create](#create)
             - [Read](#read)
+            - [Update](#update)
+            - [Delete](#delete)
+    - [Data Types](#data-types)
+        - [Basic Data Types](#basic-data-types)
+        - [Dates](#dates)
+        - [Arrays](#arrays)
+        - [Embedded Documents](#embedded-documents)
+        - [_id and ObjectIds](#_id-and-objectids)
+            - [ObjectIds](#objectids)
+            - [Autogeneration of _id](#autogeneration-of-_id)
+    - [Using the MongoDB Shell](#using-the-mongodb-shell)
+        - [Tips for Using the Shell](#tips-for-using-the-shell)
 
 <!-- /TOC -->
 
@@ -242,6 +254,12 @@ The **insertOne** function adds a document to a collection.
 }
 > db.movies.find()
 { "_id" : ObjectId("5988534267642c6d7d3f5358"), "title" : "Star Wars: Episode IV - A New Hope", "director" : "George Lucas", "year" : 1977 }
+> show dbs
+admin  0.000GB
+local  0.000GB
+video  0.000GB
+> show collections
+movies
 >
 ```
 
@@ -268,3 +286,154 @@ The **insertOne** function adds a document to a collection.
 null
 >
 ```
+
+##### Update
+
+If we would like to modify our post, we can use **updateOne**. updateOne takes (at least) two parameters: the first is the criteria to find which document to update, and the second is the new document.
+
+```ShellSession
+> db.movies.update({title : "Star Wars: Episode IV - A New Hope"},
+... {$set : {reviews: []}})
+WriteResult({ "nMatched" : 1, "nUpserted" : 0, "nModified" : 1 })
+> db.movies.find()
+{ "_id" : ObjectId("5988534267642c6d7d3f5358"), "title" : "Star Wars: Episode IV - A New Hope", "director" : "George Lucas", "year" : 1977, "reviews" : [ ] }
+> db.movies.findOne()
+{
+        "_id" : ObjectId("5988534267642c6d7d3f5358"),
+        "title" : "Star Wars: Episode IV - A New Hope",
+        "director" : "George Lucas",
+        "year" : 1977,
+        "reviews" : [ ]
+}
+>
+```
+
+##### Delete
+
+**deleteOne** and **deleteMany** permanently delete documents from the database. Both methods take filter document specifying criteria for removal. For example, this would remove the movie we just created:
+
+Use **deleteMany** to delete all documents matching a filter.
+
+```ShellSession
+> db.movies.deleteOne({title : "Star Wars"})
+{ "acknowledged" : true, "deletedCount" : 0 }
+> db.movies.deleteOne({title : "Star Wars: Episode IV - A New Hope"})
+{ "acknowledged" : true, "deletedCount" : 1 }
+> db.movies.count()
+0
+>
+```
+
+### Data Types
+
+#### Basic Data Types
+
+JSON types: null, boolean, numeric, string, array, and object.
+
+- JSON has no date type.
+- There is no way to differentiate floats and integers, never mind any distinction between 32-bit and 64-bit numbers.
+- No regular expressions.
+- No function.
+
+MongoDB adds support for a number of additional data types while keeping JSON’s essential key/value pair nature.
+
+The most common types are:
+
+- null, `{"x" : null}`
+- boolean, `{"x" : true}`
+- number
+  - The shell defaults to using 64-bit floating point numbers.
+    - `{"x" : 3.14}`
+    - `{"x" : 3}`
+  - For integers, use the NumberInt or NumberLong classes, which represent 4-byte or 8-byte signed integers, respectively.
+    - `{"x" : NumberInt("3")}`
+    - `{"x" : NumberLong("3")}`
+- string, any string of UTF-8 characters, `{"x" : "foobar"}`
+- date, MongoDB stores dates as 64-bit integers representing milliseconds since the Unix epoch (January 1, 1970). The time zone is not stored: `{"x" : new Date()}`
+- regular expression, JavaScript regular expression, `{"x" : /foobar/i}`
+- array, `{"x" : ["a", "b", "c"]}`
+- embedded document, `{"x" : {"foo" : "bar"}}`
+- object id, 12-byte ID for documents, `{"x" : ObjectId()}`
+
+There are also a few less common types that you may need, including:
+
+- binary data, binary data is a string of arbitrary bytes. It cannot be manipulated from the shell. Binary data is the only way to save non-UTF-8 strings to the database.
+- code, `{"x" : function() { /* ... */ }}`
+
+#### Dates
+
+When creating a new Date object, **always call new Date(...)**, not just Date(...). Calling the constructor as a function (that is, not including new) returns a string representation of the date, not an actual Date object.
+
+Dates in the shell are displayed using local time zone settings. However, dates in the database are just stored as milliseconds since the epoch, so they have no time zone information associated with them. (Time zone information could, of course, be stored as the value for another key.)
+
+#### Arrays
+
+```json
+{"things" : ["pie", 3.14]}
+```
+
+As we can see from the example, arrays can contain different data types as values (in this case, a string and a floating-point number). In fact, array values can be any of the supported values for normal key/value pairs, even nested arrays.
+
+#### Embedded Documents
+
+Documents can be used as the value for a key.
+
+```json
+{
+    "name" : "John Doe",
+    "address" : {
+        "street" : "123 Park Street",
+        "city" : "Anytown",
+        "state" : "NY"
+    }
+}
+```
+
+#### _id and ObjectIds
+
+- Every document stored in MongoDB must have an "_id" key.
+- The "_id" key’s value can be any type, but it defaults to an ObjectId.
+- In a single collection, every document must have a unique value for "_id", which ensures that every document in a collection can be uniquely identified.
+
+##### ObjectIds
+
+The ObjectId class is designed to be lightweight, while still being easy to generate in a globally unique way across different machines. MongoDB’s distributed nature is the main reason why it uses ObjectIds as opposed to something more traditional, like an autoincrementing primary key: it is difficult and time-consuming to synchronize autoincrementing primary keys across multiple servers. Because MongoDB was designed to be a distributed database, it was important to be able to generate unique identifiers in a sharded environment.
+
+- a 4-byte value representing the seconds since the Unix epoch,
+- a 3-byte machine identifier,
+- a 2-byte process id, and
+- a 3-byte counter, starting with a random value.
+
+These first nine bytes of an ObjectId guarantee its uniqueness across machines and processes for a single second. The last three bytes are simply an incrementing counter that is responsible for uniqueness within a second in a single process. This allows for up to 2563 (16,777,216) unique ObjectIds to be generated per process in a single second.
+
+##### Autogeneration of _id
+
+As stated previously, if there is no "_id" key present when a document is inserted, one will be automatically added to the inserted document. This can be handled by the MongoDB server but will generally be done by the driver on the client side.
+
+### Using the MongoDB Shell
+
+Connect to MongoDB on a different machine or port.
+
+```ShellSession
+$ mongo some-host:30000/myDB
+MongoDB shell version: 3.3.5
+connecting to: some-host:30000/myDB
+>
+```
+
+Start without DB and then connect.
+
+```ShellSession
+$ mongo --nodb
+MongoDB shell version: 3.3.5
+> conn = new Mongo("some-host:30000")
+connection to some-host:30000
+> db = conn.getDB("myDB")
+myDB
+```
+
+#### Tips for Using the Shell
+
+- DB level help `db.help()`
+- Collection level help `db.movies.help()`
+- Print the JavaScript source code for the function, enter without parentheses. `db.movies.updateOne`
