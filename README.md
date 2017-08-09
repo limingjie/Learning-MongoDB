@@ -37,6 +37,11 @@
         - [Customizing Your Prompt](#customizing-your-prompt)
         - [Editing Complex Variables](#editing-complex-variables)
         - [Inconvenient Collection Names](#inconvenient-collection-names)
+- [Chapter 3. Creating, Updating, and Deleting Documents](#chapter-3-creating-updating-and-deleting-documents)
+    - [Inserting Documents](#inserting-documents)
+        - [insertMany()](#insertmany)
+        - [Insert Validation](#insert-validation)
+        - [insert()](#insert)
 
 <!-- /TOC -->
 
@@ -186,8 +191,8 @@ MongoDB comes with a JavaScript shell that allows interaction with a MongoDB ins
 
 #### Running the Shell
 
-```ShellSession
-C:\Users\mingjli>mongo
+```mongoshell
+$ mongo
 MongoDB shell version v3.4.6
 connecting to: mongodb://127.0.0.1:27017
 MongoDB server version: 3.4.6
@@ -225,7 +230,7 @@ Hello whatever!
 
 #### A MongoDB Client
 
-```ShellSession
+```mongoshell
 > db
 test
 > use video
@@ -243,7 +248,7 @@ We can use the four basic operations, create, read, update, and delete (CRUD) to
 
 The **insertOne** function adds a document to a collection.
 
-```ShellSession
+```mongoshell
 > movie = {"title" : "Star Wars: Episode IV - A New Hope",
 ... "director" : "George Lucas",
 ... "year" : 1977}
@@ -272,7 +277,7 @@ movies
 
 **find** and **findOne** can be used to query a collection.
 
-```ShellSession
+```mongoshell
 > db.movies.findOne()
 {
         "_id" : ObjectId("5988534267642c6d7d3f5358"),
@@ -296,7 +301,7 @@ null
 
 If we would like to modify our post, we can use **updateOne**. updateOne takes (at least) two parameters: the first is the criteria to find which document to update, and the second is the new document.
 
-```ShellSession
+```mongoshell
 > db.movies.update({title : "Star Wars: Episode IV - A New Hope"},
 ... {$set : {reviews: []}})
 WriteResult({ "nMatched" : 1, "nUpserted" : 0, "nModified" : 1 })
@@ -319,7 +324,7 @@ WriteResult({ "nMatched" : 1, "nUpserted" : 0, "nModified" : 1 })
 
 Use **deleteMany** to delete all documents matching a filter.
 
-```ShellSession
+```mongoshell
 > db.movies.deleteOne({title : "Star Wars"})
 { "acknowledged" : true, "deletedCount" : 0 }
 > db.movies.deleteOne({title : "Star Wars: Episode IV - A New Hope"})
@@ -428,7 +433,7 @@ connecting to: some-host:30000/myDB
 
 Start without DB and then connect.
 
-```ShellSession
+```mongoshell
 $ mongo --nodb
 MongoDB shell version: 3.3.5
 > conn = new Mongo("some-host:30000")
@@ -491,3 +496,102 @@ Read later... Better use script for many commands than shell.
 #### Inconvenient Collection Names
 
 Read later... Looks like something that should be avoid.
+
+## Chapter 3. Creating, Updating, and Deleting Documents
+
+### Inserting Documents
+
+#### insertMany()
+
+```mongoshell
+> use video
+switched to db video
+> show collections
+movies
+> db.movies.find()
+> db.movies.insertOne({"title" : "3 idiots"})
+{
+        "acknowledged" : true,
+        "insertedId" : ObjectId("598acf7d704a221947c7b8be")
+}
+> db.movies.find()
+{ "_id" : ObjectId("598acf7d704a221947c7b8be"), "title" : "3 idiots" }
+> db.movies.insertMany([{"title" : "Avator"},
+...                     {"title" : "Martian"},
+...                     {"title" : "Up in the Air"}]);
+{
+        "acknowledged" : true,
+        "insertedIds" : [
+                ObjectId("598acfd4704a221947c7b8bf"),
+                ObjectId("598acfd4704a221947c7b8c0"),
+                ObjectId("598acfd4704a221947c7b8c1")
+        ]
+}
+> db.movies.find()
+{ "_id" : ObjectId("598acf7d704a221947c7b8be"), "title" : "3 idiots" }
+{ "_id" : ObjectId("598acfd4704a221947c7b8bf"), "title" : "Avatar" }
+{ "_id" : ObjectId("598acfd4704a221947c7b8c0"), "title" : "Martian" }
+{ "_id" : ObjectId("598acfd4704a221947c7b8c1"), "title" : "Up in the Air" }
+>
+```
+
+Sending dozens, hundreds, or even thousands of documents at a time can make inserts significantly faster.
+
+Use `insertMany` for bulk/batch insert, currently, MongoDB do not accept message longer than 48MB. Munge data before saving it to MongoDB.
+
+Handling insert error:
+
+- ordered (default), documents inserted by insertion order, insertion stops on error, documents beyond the point will not be inserted.
+- unordered, MongoDB will attempt to insert as many as possible.
+
+  ```mongodb
+  > db.movies.insertMany([
+  ... {"_id" : 3, "title" : "Sixteen Candles"},
+  ... {"_id" : 4, "title" : "The Terminator"},
+  ... {"_id" : 4, "title" : "The Princess Bride"},
+  ... {"_id" : 5, "title" : "Scarface"}],
+  ... {"ordered" : false})
+  2017-08-09T17:16:48.776+0800 E QUERY    [thread1] BulkWriteError: write error at   item 2 in bulk operation :
+  BulkWriteError({
+          "writeErrors" : [
+                  {
+                          "index" : 2,
+                          "code" : 11000,
+                          "errmsg" : "E11000 duplicate key error collection:   video.movies index: _id_ dup key: { : 4.0 }",
+                          "op" : {
+                                  "_id" : 4,
+                                  "title" : "The Princess Bride"
+                          }
+                  }
+          ],
+          "writeConcernErrors" : [ ],
+          "nInserted" : 3,
+          "nUpserted" : 0,
+          "nMatched" : 0,
+          "nModified" : 0,
+          "nRemoved" : 0,
+          "upserted" : [ ]
+  })
+  BulkWriteError@src/mongo/shell/bulk_api.js:372:48
+  BulkWriteResult/this.toError@src/mongo/shell/bulk_api.js:336:24
+  Bulk/this.execute@src/mongo/shell/bulk_api.js:1173:1
+  DBCollection.prototype.insertMany@src/mongo/shell/crud_api.js:302:5
+  @(shell):1:1
+  >
+  ```
+
+#### Insert Validation
+
+One of the basic structure checks is size: all documents must be smaller than 16 MB.
+
+```mongodb
+> db.movies.findOne({"title" : "Avatar"})
+{ "_id" : ObjectId("598acfd4704a221947c7b8bf"), "title" : "Avatar" }
+> Object.bsonsize(db.movies.findOne({"title" : "Avatar"}))
+40
+>
+```
+
+#### insert()
+
+Backward compatibility for MongoDB prior to 3.0. For consistency CRUD API after 3.0, `insertOne` and `insertMany` are prefered.
