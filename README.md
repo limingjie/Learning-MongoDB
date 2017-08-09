@@ -44,6 +44,13 @@
         - [insert()](#insert)
     - [Removing Documents](#removing-documents)
         - [drop()](#drop)
+    - [Updating Documents](#updating-documents)
+        - [Document Replacement](#document-replacement)
+        - [Using Update Operators](#using-update-operators)
+            - [Getting started with the “$set” modifier](#getting-started-with-the-set-modifier)
+            - [Incrementing and decrementing](#incrementing-and-decrementing)
+            - [Array operators](#array-operators)
+                - [Adding elements](#adding-elements)
 
 <!-- /TOC -->
 
@@ -193,7 +200,7 @@ MongoDB comes with a JavaScript shell that allows interaction with a MongoDB ins
 
 #### Running the Shell
 
-```mongoshell
+```javascript
 $ mongo
 MongoDB shell version v3.4.6
 connecting to: mongodb://127.0.0.1:27017
@@ -232,7 +239,7 @@ Hello whatever!
 
 #### A MongoDB Client
 
-```mongoshell
+```javascript
 > db
 test
 > use video
@@ -250,7 +257,7 @@ We can use the four basic operations, create, read, update, and delete (CRUD) to
 
 The **insertOne** function adds a document to a collection.
 
-```mongoshell
+```javascript
 > movie = {"title" : "Star Wars: Episode IV - A New Hope",
 ... "director" : "George Lucas",
 ... "year" : 1977}
@@ -279,7 +286,7 @@ movies
 
 **find** and **findOne** can be used to query a collection.
 
-```mongoshell
+```javascript
 > db.movies.findOne()
 {
         "_id" : ObjectId("5988534267642c6d7d3f5358"),
@@ -303,7 +310,7 @@ null
 
 If we would like to modify our post, we can use **updateOne**. updateOne takes (at least) two parameters: the first is the criteria to find which document to update, and the second is the new document.
 
-```mongoshell
+```javascript
 > db.movies.update({title : "Star Wars: Episode IV - A New Hope"},
 ... {$set : {reviews: []}})
 WriteResult({ "nMatched" : 1, "nUpserted" : 0, "nModified" : 1 })
@@ -326,7 +333,7 @@ WriteResult({ "nMatched" : 1, "nUpserted" : 0, "nModified" : 1 })
 
 Use **deleteMany** to delete all documents matching a filter.
 
-```mongoshell
+```javascript
 > db.movies.deleteOne({title : "Star Wars"})
 { "acknowledged" : true, "deletedCount" : 0 }
 > db.movies.deleteOne({title : "Star Wars: Episode IV - A New Hope"})
@@ -435,7 +442,7 @@ connecting to: some-host:30000/myDB
 
 Start without DB and then connect.
 
-```mongoshell
+```javascript
 $ mongo --nodb
 MongoDB shell version: 3.3.5
 > conn = new Mongo("some-host:30000")
@@ -505,7 +512,7 @@ Read later... Looks like something that should be avoid.
 
 #### insertMany()
 
-```mongoshell
+```javascript
 > use video
 switched to db video
 > show collections
@@ -546,7 +553,7 @@ Handling insert error:
 - ordered (default), documents inserted by insertion order, insertion stops on error, documents beyond the point will not be inserted.
 - unordered, MongoDB will attempt to insert as many as possible.
 
-  ```mongodb
+  ```javascript
   > db.movies.insertMany([
   ... {"_id" : 3, "title" : "Sixteen Candles"},
   ... {"_id" : 4, "title" : "The Terminator"},
@@ -586,7 +593,7 @@ Handling insert error:
 
 One of the basic structure checks is size: all documents must be smaller than 16 MB.
 
-```mongodb
+```javascript
 > db.movies.findOne({"title" : "Avatar"})
 { "_id" : ObjectId("598acfd4704a221947c7b8bf"), "title" : "Avatar" }
 > Object.bsonsize(db.movies.findOne({"title" : "Avatar"}))
@@ -602,7 +609,7 @@ Backward compatibility for MongoDB prior to 3.0. For consistency CRUD API after 
 
 Removing documents use `deleteOne` and `deleteMany`.
 
-```mongodb
+```javascript
 > db.movies.find()
 { "_id" : ObjectId("598acfd4704a221947c7b8bf"), "title" : "Avatar" }
 { "_id" : ObjectId("598acfd4704a221947c7b8c0"), "title" : "Martian" }
@@ -629,7 +636,7 @@ In versions of MongoDB prior to 3.0, remove() was the primary method for deleted
 
 Use `drop` to clear an entire collection.
 
-```mongodb
+```javascript
 > db.movies.deleteMany({})
 { "acknowledged" : true, "deletedCount" : 1 }
 > db.movies.drop()
@@ -638,3 +645,240 @@ true
 ```
 
 There is no way to restore deleted or dropped document, except restoring backup.
+
+### Updating Documents
+
+Update methods:
+
+- `updateOne` and `updateMany` each take a filter document as their first parameter and a modifier document, which describes changes to make, as the second parameter.
+- `replaceOne` also takes a filter as the first parameter, but as the second parameter replaceOne expects a document with which it will replace the document matching the filter.
+
+**Updating a document is atomic**, the one reaches server first will win.
+
+#### Document Replacement
+
+```javascript
+> db.users.insertOne({
+...     "_id" : ObjectId("4b2b9f67a1f631733d917a7a"),
+...     "name" : "joe",
+...     "friends" : 32,
+...     "enemies" : 2
+... })
+{
+        "acknowledged" : true,
+        "insertedId" : ObjectId("4b2b9f67a1f631733d917a7a")
+}
+> db.users.find()
+{ "_id" : ObjectId("4b2b9f67a1f631733d917a7a"), "name" : "joe", "friends" : 32, "enemies" : 2 }
+> var joe = db.users.findOne({"name" : "joe"})
+> joe
+{
+        "_id" : ObjectId("4b2b9f67a1f631733d917a7a"),
+        "name" : "joe",
+        "friends" : 32,
+        "enemies" : 2,
+        "relatioships" : {
+                "friends" : undefined,
+                "emenies" : undefined
+        }
+}
+> joe.relatioships = { "friends" : joe.friends, "emenies" : joe.enemies };
+{ "friends" : 32, "emenies" : 2 }
+> joe.username = joe.name;
+joe
+> delete joe.friends;
+true
+> delete joe.enemies;
+true
+> delete joe.name;
+true
+> joe
+{
+        "_id" : ObjectId("4b2b9f67a1f631733d917a7a"),
+        "relatioships" : {
+                "friends" : 32,
+                "emenies" : 2
+        },
+        "username" : "joe"
+}
+> db.users.replaceOne({ "name" : "joe" }, joe);
+{ "acknowledged" : true, "matchedCount" : 1, "modifiedCount" : 1 }
+> db.users.findOne()
+{
+        "_id" : ObjectId("4b2b9f67a1f631733d917a7a"),
+        "relatioships" : {
+                "friends" : 32,
+                "emenies" : 2
+        },
+        "username" : "joe"
+}
+>
+```
+
+In case of duplicate records, using `_id` for the filter will also be efficient since `_id` values form the basis for the primary index of a collection.
+
+#### Using Update Operators
+
+Usually only certain portions of a document need to be updated. You can update specific fields in a document using atomic update operators.
+
+```json
+{
+    "_id" : ObjectId("4b253b067525f35f94b60a31"),
+    "url" : "www.example.com",
+    "pageviews" : 52
+}
+```
+
+Using `$inc` modifier to increment the value of the `pageviews` key
+
+```javascript
+> db.analytics.updateOne({"url" : "www.example.com"},
+... {"$inc" : {"pageviews" : 1}})
+> db.analytics.findOne()
+{
+    "_id" : ObjectId("4b253b067525f35f94b60a31"),
+    "url" : "www.example.com",
+    "pageviews" : 53
+}
+```
+
+**When using operators, the value of `_id` cannot be changed.** (Note that `_id` can be changed by using whole-document replacement.) Values for any other key, including other uniquely indexed keys, can be modified.
+
+##### Getting started with the “$set” modifier
+
+`$set` sets the value of a field. If the field does not yet exist, it will be created.
+
+```javascript
+> db.users.findOne()
+{
+    "_id" : ObjectId("4b253b067525f35f94b60a31"),
+    "name" : "joe",
+    "age" : 30,
+    "sex" : "male",
+    "location" : "Wisconsin"
+}
+// This is a pretty bare-bones user profile. If the user wanted to store his favorite book in his profile, he could add it using "$set":
+> db.users.updateOne({"_id" : ObjectId("4b253b067525f35f94b60a31")},
+... {"$set" : {"favorite book" : "War and Peace"}})
+// Now the document will have a “favorite book” key:
+> db.users.findOne()
+{
+    "_id" : ObjectId("4b253b067525f35f94b60a31"),
+    "name" : "joe",
+    "age" : 30,
+    "sex" : "male",
+    "location" : "Wisconsin",
+    "favorite book" : "War and Peace"
+}
+// If the user decides that he actually enjoys a different book, $set can be used again to change the value:
+> db.users.updateOne({"name" : "joe"},
+... {"$set" : {"favorite book" : "Green Eggs and Ham"}})
+// $set can even change the type of the key it modifies. For instance, if our fickle user decides that he actually likes quite a few books, he can change the value of the “favorite book” key into an array:
+> db.users.updateOne({"name" : "joe"},
+... {"$set" : {"favorite book" :
+...     ["Cat's Cradle", "Foundation Trilogy", "Ender's Game"]}})
+// If the user realizes that he actually doesn’t like reading, he can remove the key altogether with "$unset":
+> db.users.updateOne({"name" : "joe"},
+... {"$unset" : {"favorite book" : 1}})
+// Now the document will be the same as it was at the beginning of this example.
+
+// You can also use "$set" to reach in and change embedded documents:
+> db.blog.posts.findOne()
+{
+    "_id" : ObjectId("4b253b067525f35f94b60a31"),
+    "title" : "A Blog Post",
+    "content" : "...",
+    "author" : {
+        "name" : "joe",
+        "email" : "joe@example.com"
+    }
+}
+> db.blog.posts.updateOne({"author.name" : "joe"},
+... {"$set" : {"author.name" : "joe schmoe"}})
+> db.blog.posts.findOne()
+{
+    "_id" : ObjectId("4b253b067525f35f94b60a31"),
+    "title" : "A Blog Post",
+    "content" : "...",
+    "author" : {
+        "name" : "joe schmoe",
+        "email" : "joe@example.com"
+    }
+}
+```
+
+##### Incrementing and decrementing
+
+The `$inc` operator can be used to change the value for an existing key or to create a new key if it does not already exist.
+
+**`$inc` can be used only on values of type integer, long, or double.**
+
+```javascript
+> db.games.insertOne({"game" : "pinball", "user" : "joe"})
+> db.games.updateOne({"game" : "pinball", "user" : "joe"},
+... {"$inc" : {"score" : 50}})
+> db.games.findOne()
+{
+     "_id" : ObjectId("4b2d75476cc613d5ee930164"),
+     "game" : "pinball",
+     "user" : "joe",
+     "score" : 50
+}
+> db.games.updateOne({"game" : "pinball", "user" : "joe"},
+... {"$inc" : {"score" : 10000}})
+> db.games.findOne()
+{
+     "_id" : ObjectId("4b2d75476cc613d5ee930164"),
+     "game" : "pinball",
+     "user" : "joe",
+     "score" : 10050
+}
+```
+
+##### Array operators
+
+###### Adding elements
+
+`$push` adds elements to the end of an array if the array exists and creates a new array if it does not.
+
+```javascript
+> db.blog.posts.findOne()
+{
+    "_id" : ObjectId("4b2d75476cc613d5ee930164"),
+    "title" : "A blog post",
+    "content" : "..."
+}
+> db.blog.posts.updateOne({"title" : "A blog post"},
+... {"$push" : {"comments" :
+...     {"name" : "joe", "email" : "joe@example.com",
+...     "content" : "nice post."}}})
+{ "acknowledged" : true, "matchedCount" : 1, "modifiedCount" : 1 }
+> db.blog.posts.findOne()
+{
+    "_id" : ObjectId("4b2d75476cc613d5ee930164"),
+    "title" : "A blog post",
+    "content" : "...",
+    "comments" : [
+        {
+            "name" : "joe",
+            "email" : "joe@example.com",
+            "content" : "nice post."
+        }
+    ]
+}
+```
+
+- Using `$each` to push multiple values.
+- Using `$slice` to keep top N items.
+- Using `$sort` to sort objects in the array by specified field.
+
+**Note that you must include `$each`; you cannot just `$slice` or `$sort` an array with `$push`.**
+
+```javascript
+> db.movies.updateOne({"genre" : "horror"},
+... {"$push" : {"top10" : {"$each" : [{"name" : "Nightmare on Elm Street",
+...                                    "rating" : 6.6},
+...                                   {"name" : "Saw", "rating" : 4.3}],
+...                        "$slice" : -10,
+...                        "$sort" : {"rating" : -1}}}})
+```
