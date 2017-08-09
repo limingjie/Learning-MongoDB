@@ -42,6 +42,8 @@
         - [insertMany()](#insertmany)
         - [Insert Validation](#insert-validation)
         - [insert()](#insert)
+    - [Removing Documents](#removing-documents)
+        - [drop()](#drop)
 
 <!-- /TOC -->
 
@@ -595,3 +597,44 @@ One of the basic structure checks is size: all documents must be smaller than 16
 #### insert()
 
 Backward compatibility for MongoDB prior to 3.0. For consistency CRUD API after 3.0, `insertOne` and `insertMany` are prefered.
+
+### Removing Documents
+
+Removing documents use `deleteOne` and `deleteMany`.
+
+```mongodb
+> db.movies.find()
+{ "_id" : ObjectId("598acfd4704a221947c7b8bf"), "title" : "Avatar" }
+{ "_id" : ObjectId("598acfd4704a221947c7b8c0"), "title" : "Martian" }
+{ "_id" : ObjectId("598acfd4704a221947c7b8c1"), "title" : "Up in the Air" }
+{ "_id" : 3, "title" : "Sixteen Candles" }
+{ "_id" : 4, "title" : "The Terminator" }
+{ "_id" : 5, "title" : "Scarface" }
+> db.movies.find({"title" : /a/})
+{ "_id" : ObjectId("598acfd4704a221947c7b8bf"), "title" : "Avatar" }
+{ "_id" : ObjectId("598acfd4704a221947c7b8c0"), "title" : "Martian" }
+{ "_id" : 3, "title" : "Sixteen Candles" }
+{ "_id" : 4, "title" : "The Terminator" }
+{ "_id" : 5, "title" : "Scarface" }
+> db.movies.deleteMany({"title" : /a/})
+{ "acknowledged" : true, "deletedCount" : 5 }
+> db.movies.find()
+{ "_id" : ObjectId("598acfd4704a221947c7b8c1"), "title" : "Up in the Air" }
+>
+```
+
+In versions of MongoDB prior to 3.0, remove() was the primary method for deleted documents in MongoDB.
+
+#### drop()
+
+Use `drop` to clear an entire collection.
+
+```mongodb
+> db.movies.deleteMany({})
+{ "acknowledged" : true, "deletedCount" : 1 }
+> db.movies.drop()
+true
+>
+```
+
+There is no way to restore deleted or dropped document, except restoring backup.
