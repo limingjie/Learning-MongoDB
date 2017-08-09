@@ -32,6 +32,11 @@
             - [Autogeneration of _id](#autogeneration-of-_id)
     - [Using the MongoDB Shell](#using-the-mongodb-shell)
         - [Tips for Using the Shell](#tips-for-using-the-shell)
+        - [Running Scripts with the Shell](#running-scripts-with-the-shell)
+        - [Creating a .mongorc.js](#creating-a-mongorcjs)
+        - [Customizing Your Prompt](#customizing-your-prompt)
+        - [Editing Complex Variables](#editing-complex-variables)
+        - [Inconvenient Collection Names](#inconvenient-collection-names)
 
 <!-- /TOC -->
 
@@ -437,3 +442,52 @@ myDB
 - DB level help `db.help()`
 - Collection level help `db.movies.help()`
 - Print the JavaScript source code for the function, enter without parentheses. `db.movies.updateOne`
+
+#### Running Scripts with the Shell
+
+```ShellSession
+$ mongo script1.js script2.js script3.js
+$ mongo --quiet server:port/database script1.js script2.js script3.js
+> load("script1.js")
+```
+
+Scripts have access to the db variable (as well as any other globals). However, shell helpers such as "use db" or "show collections" do not work from files. There are valid JavaScript equivalents to each of these, as shown in Table 2-1.
+
+|      Helper      |       Equivalent        |
+| ---------------- | ----------------------- |
+| use video        | db.getSisterDB("video") |
+| show dbs         | db.getMongo().getDBs()  |
+| show collections | db.getCollectionNames() |
+
+#### Creating a .mongorc.js
+
+`~/.mongorc.js` file runs whenever you start up the shell. More practically, you can use this script to set up any global variables you’d like to use, alias long names to shorter ones, and override built-in functions. One of the most common uses for `.mongorc.js` is remove some of the more “dangerous” shell helpers. You can override functions like dropDatabase or deleteIndexes with no-ops or undefine them altogether:
+
+```JavaScript
+var no = function() {
+    print("Not on my watch.");
+};
+
+// Prevent dropping databases
+db.dropDatabase = DB.prototype.dropDatabase = no;
+
+// Prevent dropping collections
+DBCollection.prototype.drop = no;
+
+// Prevent dropping indexes
+DBCollection.prototype.dropIndex = no;
+```
+
+You can disable loading your .mongorc.js by using the --norc option when starting the shell.
+
+#### Customizing Your Prompt
+
+Read later... Not necessary :)
+
+#### Editing Complex Variables
+
+Read later... Better use script for many commands than shell.
+
+#### Inconvenient Collection Names
+
+Read later... Looks like something that should be avoid.
