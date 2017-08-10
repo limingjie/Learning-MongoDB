@@ -54,6 +54,8 @@
             - [Using arrays as sets](#using-arrays-as-sets)
             - [Removing elements](#removing-elements)
             - [Positional array modifications](#positional-array-modifications)
+            - [Upserts](#upserts)
+                - [The save shell helper](#the-save-shell-helper)
 
 <!-- /TOC -->
 
@@ -1039,3 +1041,50 @@ WriteResult({ "nMatched" : 1, "nUpserted" : 0, "nModified" : 1 })
 }
 >
 ```
+
+##### Upserts
+
+An upsert is a special type of update. If no document is found that matches the update criteria, a new document will be created by combining the criteria and updated documents. If a matching document is found, it will be updated normally. Upserts can be handy because they can eliminate the need to “seed” your collection: you can often have the same code create and update documents.
+
+```javascript
+db.analytics.updateOne({"url" : "/blog"}, {"$inc" : {"pageviews" : 1}}, {"upsert" : true})
+```
+
+Use `$setOnInsert` operator to update only on insert, if the document exists, the field won't be updated.
+
+```javascript
+> db.users.updateOne({}, {"$setOnInsert" : {"createdAt" : new Date()}},
+...{"upsert" : true})
+{
+	"acknowledged" : true,
+	"matchedCount" : 0,
+	"modifiedCount" : 0,
+	"upsertedId" : ObjectId("5727b4ac223502483c7f3ace")
+}
+> db.users.findOne()
+{
+	"_id" : ObjectId("5727b4ac223502483c7f3ace"),
+	"createdAt" : ISODate("2016-05-02T20:12:28.640Z")
+}
+> db.users.updateOne({}, {"$setOnInsert" : {"createdAt" : new Date()}},
+...{"upsert" : true})
+{ "acknowledged" : true, "matchedCount" : 1, "modifiedCount" : 0 }
+> db.users.findOne()
+{
+	"_id" : ObjectId("5727b4ac223502483c7f3ace"),
+	"createdAt" : ISODate("2016-05-02T20:12:28.640Z")
+}
+```
+
+###### The save shell helper
+
+save is a shell function that lets you insert a document if it doesn’t exist and update it if it does. It takes one argument: a document. If the document contains an `_id` key, save will do an upsert. Otherwise, it will do an insert. save is really just a convenience function so that programmers can quickly modify documents in the shell:
+
+```javascript
+> var x = db.testcol.findOne()
+> x.num = 42
+42
+> db.testcol.save(x)
+```
+
+Without save, the last line would have been a more cumbersome `db.testcol.updateOne({"_id" : x._id}, x)`.
