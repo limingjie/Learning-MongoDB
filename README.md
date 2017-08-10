@@ -51,6 +51,9 @@
             - [Incrementing and decrementing](#incrementing-and-decrementing)
             - [Array operators](#array-operators)
                 - [Adding elements](#adding-elements)
+            - [Using arrays as sets](#using-arrays-as-sets)
+            - [Removing elements](#removing-elements)
+            - [Positional array modifications](#positional-array-modifications)
 
 <!-- /TOC -->
 
@@ -603,7 +606,7 @@ One of the basic structure checks is size: all documents must be smaller than 16
 
 #### insert()
 
-Backward compatibility for MongoDB prior to 3.0. For consistency CRUD API after 3.0, `insertOne` and `insertMany` are prefered.
+Backward compatibility for MongoDB prior to 3.0. For consistency CRUD API after 3.0, `insertOne` and `insertMany` are preferred.
 
 ### Removing Documents
 
@@ -881,4 +884,158 @@ The `$inc` operator can be used to change the value for an existing key or to cr
 ...                                   {"name" : "Saw", "rating" : 4.3}],
 ...                        "$slice" : -10,
 ...                        "$sort" : {"rating" : -1}}}})
+```
+
+##### Using arrays as sets
+
+Use `$addToSet` to add elements in to array, and make sure uniqueness. `$addToSet` can be used in conjunction with `$each` to add multiple unique values.
+
+```javascript
+> db.users.findOne({"_id" : ObjectId("4b2d75476cc613d5ee930164")})
+{
+    "_id" : ObjectId("4b2d75476cc613d5ee930164"),
+    "username" : "joe",
+    "emails" : [
+        "joe@example.com",
+        "joe@gmail.com",
+        "joe@yahoo.com"
+    ]
+}
+> db.users.updateOne({"_id" : ObjectId("4b2d75476cc613d5ee930164")},
+... {"$addToSet" : {"emails" : "joe@gmail.com"}})
+{ "acknowledged" : true, "matchedCount" : 1, "modifiedCount" : 0 }
+> db.users.findOne({"_id" : ObjectId("4b2d75476cc613d5ee930164")})
+{
+    "_id" : ObjectId("4b2d75476cc613d5ee930164"),
+    "username" : "joe",
+    "emails" : [
+        "joe@example.com",
+        "joe@gmail.com",
+        "joe@yahoo.com",
+    ]
+}
+> db.users.updateOne({"_id" : ObjectId("4b2d75476cc613d5ee930164")}, {"$addToSet" :
+... {"emails" : {"$each" :
+...     ["joe@php.net", "joe@example.com", "joe@python.org"]}}})
+{ "acknowledged" : true, "matchedCount" : 1, "modifiedCount" : 1 }
+> db.users.findOne({"_id" : ObjectId("4b2d75476cc613d5ee930164")})
+{
+    "_id" : ObjectId("4b2d75476cc613d5ee930164"),
+    "username" : "joe",
+    "emails" : [
+        "joe@example.com",
+        "joe@gmail.com",
+        "joe@yahoo.com",
+        "joe@hotmail.com"
+        "joe@php.net"
+        "joe@python.org"
+    ]
+}
+```
+
+##### Removing elements
+
+- `$pop`, treat array like a queue or stack.
+  - `{"$pop" : {"key" : 1}}` removes an element from the end of the array.
+  - `{"$pop" : {"key" : -1}}` removes an element from the beginning of the array.
+- `$pull`, remove based on specific criteria.
+  - Pulling removes all matching documents, not just a single match. If you have an array that looks like [1, 1, 2, 1] and pull 1, you’ll end up with a single-element array, [2].
+
+```javascript
+> db.lists.insertOne({"todo" : ["dishes", "laundry", "dry cleaning"]})
+> db.lists.updateOne({}, {"$pull" : {"todo" : "laundry"}})
+```
+
+**Array operators can be used only on keys with array values. For example, you cannot push on to an integer or pop off of a string, for example. Use `$set` or `$inc` to modify scalar values.**
+
+##### Positional array modifications
+
+- by index.
+- by position operator `$`.
+  - The positional operator updates only the first match. Thus, if John had left more than one comment, his name would be changed only for the first comment he left.
+
+```javascript
+> db.blog.posts.findOne()
+{
+        "_id" : ObjectId("4b329a216cc613d5ee930192"),
+        "content" : "...",
+        "comments" : [
+                {
+                        "comment" : "good post",
+                        "author" : "John",
+                        "votes" : 0
+                },
+                {
+                        "comment" : "i thought it was too short",
+                        "author" : "Claire",
+                        "votes" : 3
+                },
+                {
+                        "comment" : "free watches",
+                        "author" : "Alice",
+                        "votes" : -1
+                }
+        ]
+}
+> db.blog.posts.updateOne({}, {"$inc" : {"comments.0.votes" : 20}})
+{ "acknowledged" : true, "matchedCount" : 1, "modifiedCount" : 1 }
+> db.blog.posts.findOne()
+{
+        "_id" : ObjectId("4b329a216cc613d5ee930192"),
+        "content" : "...",
+        "comments" : [
+                {
+                        "comment" : "good post",
+                        "author" : "John",
+                        "votes" : 20
+                },
+                {
+                        "comment" : "i thought it was too short",
+                        "author" : "Claire",
+                        "votes" : 3
+                },
+                {
+                        "comment" : "free watches",
+                        "author" : "Alice",
+                        "votes" : -1
+                }
+        ]
+}
+> db.blog.posts.update({}, {"$inc" : {"comments.0.votes" : 20}})
+WriteResult({ "nMatched" : 1, "nUpserted" : 0, "nModified" : 1 })
+> db.blog.posts.update({}, {"$inc" : {"comments.$.votes" : 20}})
+WriteResult({
+        "nMatched" : 0,
+        "nUpserted" : 0,
+        "nModified" : 0,
+        "writeError" : {
+                "code" : 16837,
+                "errmsg" : "The positional operator did not find the match needed from the query. Unexpanded update: comments.$.votes"
+        }
+})
+> db.blog.posts.update({"comments.author" : "Alice"}, {"$inc" : {"comments.$.votes" : 20}})
+WriteResult({ "nMatched" : 1, "nUpserted" : 0, "nModified" : 1 })
+> db.blog.posts.findOne()
+{
+        "_id" : ObjectId("4b329a216cc613d5ee930192"),
+        "content" : "...",
+        "comments" : [
+                {
+                        "comment" : "good post",
+                        "author" : "John",
+                        "votes" : 40
+                },
+                {
+                        "comment" : "i thought it was too short",
+                        "author" : "Claire",
+                        "votes" : 3
+                },
+                {
+                        "comment" : "free watches",
+                        "author" : "Alice",
+                        "votes" : 19
+                }
+        ]
+}
+>
 ```
