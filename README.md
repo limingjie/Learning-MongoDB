@@ -70,6 +70,12 @@
     - [Type-Specific Queries](#type-specific-queries)
         - [null](#null)
         - [Regular Expressions](#regular-expressions)
+        - [Querying Arrays](#querying-arrays)
+            - [`$all`](#all)
+            - [`$size`](#size)
+            - [The `$slice` operator](#the-slice-operator)
+            - [Returning a matching array element](#returning-a-matching-array-element)
+            - [Array and range query interactions](#array-and-range-query-interactions)
 
 <!-- /TOC -->
 
@@ -441,6 +447,33 @@ The ObjectId class is designed to be lightweight, while still being easy to gene
 - a 3-byte machine identifier,
 - a 2-byte process id, and
 - a 3-byte counter, starting with a random value.
+
+<table>
+  <thead>
+    <tr>
+      <th>0</th>
+      <th>1</th>
+      <th>2</th>
+      <th>3</th>
+      <th>4</th>
+      <th>5</th>
+      <th>6</th>
+      <th>7</th>
+      <th>8</th>
+      <th>9</th>
+      <th>10</th>
+      <th>11</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td colspan="4">Timestamp</td>
+      <td colspan="3">Machine Id</td>
+      <td colspan="2">PID</td>
+      <td colspan="3">Counter</td>
+    </tr>
+  </tbody>
+</table>
 
 These first nine bytes of an ObjectId guarantee its uniqueness across machines and processes for a single second. The last three bytes are simply an incrementing counter that is responsible for uniqueness within a second in a single process. This allows for up to 2563 (16,777,216) unique ObjectIds to be generated per process in a single second.
 
@@ -1209,11 +1242,11 @@ There are some restrictions on queries. The value of a query document must be a 
 
 | Operator | Condition |
 | -------- | :-------: |
-| `$lt`    | <         |
-| `$lte`   | <=        |
-| `$gt`    | >         |
-| `$gte`   | >=        |
-| `$ne`    | <>        |
+| `$lt`    |    `<`    |
+| `$lte`   |   `<=`    |
+| `$gt`    |    `>`    |
+| `$gte`   |   `>=`    |
+| `$ne`    |   `<>`    |
 
 ```javascript
 > db.users.find({"age" : {"$gte" : 18, "$lte" : 30}})
@@ -1271,8 +1304,83 @@ To match existing key with value `null`, try `db.c.find({"z" : {"$eq" : null, "$
 `$regex` flag.
 
 ```javascript
-> db.users.find({"name" : {"$regex" : /joe/i }})
+> db.users.find({"name" : {"$regex" : /joe/i}})
 > db.users.find({"name" : /joey?/i})
 ```
 
 MongoDB uses the Perl Compatible Regular Expression (PCRE) library to match regular expressions.
+
+#### Querying Arrays
+
+##### `$all`
+
+If you need to match arrays by more than one element, you can use "$all". This allows you to match a list of elements. For example, suppose we created a collection with three elements:
+
+```javascript
+> db.food.insertOne({"_id" : 1, "fruit" : ["apple", "banana", "peach"]})
+{ "acknowledged" : true, "insertedId" : 1 }
+> db.food.insertOne({"_id" : 2, "fruit" : ["apple", "kumquat", "orange"]})
+{ "acknowledged" : true, "insertedId" : 2 }
+> db.food.insertOne({"_id" : 3, "fruit" : ["cherry", "banana", "apple"]})
+{ "acknowledged" : true, "insertedId" : 3 }
+> db.food.find({fruit : {$all : ["apple", "banana"]}})
+{ "_id" : 1, "fruit" : [ "apple", "banana", "peach" ] }
+{ "_id" : 3, "fruit" : [ "cherry", "banana", "apple" ] }
+>
+```
+
+Exactly match, only matches array which has **the same elements** and **in the same order**.
+
+```javascript
+> db.food.find({"fruit" : ["apple", "banana", "peach"]})
+{ "_id" : 1, "fruit" : [ "apple", "banana", "peach" ] }
+```
+
+Use `key.index` to query a specific element of an array.
+
+```javascript
+> db.food.find({"fruit.2" : "peach"})
+{ "_id" : 1, "fruit" : [ "apple", "banana", "peach" ] }
+```
+
+##### `$size`
+
+Query array for given size.
+
+```javascript
+> db.food.find({"fruit" : {"$size" : 3}})
+{ "_id" : 1, "fruit" : [ "apple", "banana", "peach" ] }
+{ "_id" : 2, "fruit" : [ "apple", "kumquat", "orange" ] }
+{ "_id" : 3, "fruit" : [ "cherry", "banana", "apple" ] }
+```
+
+##### The `$slice` operator
+
+```javascript
+// return first 10 elements
+> db.blog.posts.findOne(criteria, {"comments" : {"$slice" : 10}})
+// return last 10 elements
+> db.blog.posts.findOne(criteria, {"comments" : {"$slice" : -10}})
+// return 10 elements from the 23rd.
+> db.blog.posts.findOne(criteria, {"comments" : {"$slice" : [23, 10]}})
+```
+
+##### Returning a matching array element
+
+`$slice` is helpful when you know the index of the element, but sometimes you want whichever array element matched your criteria. You can return the matching element with the $-operator. Given the blog example above, you could get Bob’s comment back with:
+
+```javascript
+> db.blog.posts.find({"comments.name" : "bob"}, {"comments.$" : 1})
+{
+    "_id" : ObjectId("4b2d75476cc613d5ee930164"),
+    "comments" : [
+        {
+            "name" : "bob",
+            "email" : "bob@example.com",
+            "content" : "good post."
+        }
+    ]
+}
+```
+
+##### Array and range query interactions
