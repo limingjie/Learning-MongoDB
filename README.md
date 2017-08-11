@@ -60,6 +60,16 @@
             - [Returning Updated Documents](#returning-updated-documents)
 - [Chapter 4. Querying](#chapter-4-querying)
     - [Introduction to find](#introduction-to-find)
+        - [Specifying Which Keys to Return](#specifying-which-keys-to-return)
+        - [Limitations](#limitations)
+    - [Query Criteria](#query-criteria)
+        - [Query Conditionals](#query-conditionals)
+        - [OR Queries](#or-queries)
+        - [$not](#not)
+        - [Conditional Semantics](#conditional-semantics)
+    - [Type-Specific Queries](#type-specific-queries)
+        - [null](#null)
+        - [Regular Expressions](#regular-expressions)
 
 <!-- /TOC -->
 
@@ -1158,3 +1168,111 @@ Instead of using 2 steps `find` and `updateOne`, `findOneAndUpdate` make sure th
 ## Chapter 4. Querying
 
 ### Introduction to find
+
+- `find`
+  - `{}`, matches everything in the collection. `find()` defaults to `{}`.
+  - Multiple conditions can be stung together by adding more key/value pairs to the query document.
+
+#### Specifying Which Keys to Return
+
+Second argument for `find` or `fineOne`.
+
+- 0, exclude
+- 1, include
+
+```javascript
+> db.users.find({}, {"username" : 1, "email" : 1})
+{
+    "_id" : ObjectId("4ba0f0dfd22aa494fd523620"),
+    "username" : "joe",
+    "email" : "joe@example.com"
+}
+> db.users.find({}, {"username" : 1, "_id" : 0})
+{
+    "username" : "joe",
+}
+```
+
+#### Limitations
+
+There are some restrictions on queries. The value of a query document must be a constant as far as the database is concerned.
+
+```javascript
+> db.stock.find({"in_stock" : "this.num_sold"}) // doesn't work
+```
+
+`$where Queries` can satisfy this kind of query, but for better performance, document should be better designed to use this for better performance.
+
+### Query Criteria
+
+#### Query Conditionals
+
+| Operator | Condition |
+| -------- | :-------: |
+| `$lt`    | <         |
+| `$lte`   | <=        |
+| `$gt`    | >         |
+| `$gte`   | >=        |
+| `$ne`    | <>        |
+
+```javascript
+> db.users.find({"age" : {"$gte" : 18, "$lte" : 30}})
+> start = new Date("01/01/2007")
+> db.users.find({"registered" : {"$lt" : start}})
+> db.users.find({"username" : {"$ne" : "joe"}})
+```
+
+#### OR Queries
+
+- `$in` / `$nin` can be used to query for a variety of values for a single key.
+
+  ```javascript
+  > db.raffle.find({"ticket_no" : {"$in" : [725, 542, 390]}})
+  > db.users.find({"user_id" : {"$in" : [12345, "joe"]})
+  > db.raffle.find({"ticket_no" : {"$nin" : [725, 542, 390]}})
+  ```
+
+- `$or` is more general; it can be used to query for any of the given values across multiple keys.
+
+  ```javascript
+  > db.raffle.find({"$or" : [{"ticket_no" : {"$in" : [725, 542, 390]}},
+                             {"winner" : true}]})
+  ```
+
+`$in` has better performance than `$or`.
+
+#### $not
+
+`$not` is a metaconditional: it can be applied on top of any other criteria. It is particularly useful in conjunction with Regex.
+
+```javascript
+> db.users.find({"id_num" : {"$mod" : [5, 1]}})
+> db.users.find({"id_num" : {"$not" : {"$mod" : [5, 1]}}})
+```
+
+#### Conditional Semantics
+
+```javascript
+> db.users.find({"age" : {"$lt" : 30, "$gt" : 20}})
+> db.users.find({"$and" : [{"x" : {"$lt" : 1}}, {"x" : 4}]})
+> db.users.find({"x" : {"$lt" : 1, "$in" : [4]}})
+```
+
+### Type-Specific Queries
+
+#### null
+
+`null` matches not only it self but also "does not exist".
+
+To match existing key with value `null`, try `db.c.find({"z" : {"$eq" : null, "$exists" : true}})`.
+
+#### Regular Expressions
+
+`$regex` flag.
+
+```javascript
+> db.users.find({"name" : {"$regex" : /joe/i }})
+> db.users.find({"name" : /joey?/i})
+```
+
+MongoDB uses the Perl Compatible Regular Expression (PCRE) library to match regular expressions.
