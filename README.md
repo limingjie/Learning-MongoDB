@@ -56,6 +56,10 @@
             - [Positional array modifications](#positional-array-modifications)
             - [Upserts](#upserts)
                 - [The save shell helper](#the-save-shell-helper)
+            - [Updating Multiple Documents](#updating-multiple-documents)
+            - [Returning Updated Documents](#returning-updated-documents)
+- [Chapter 4. Querying](#chapter-4-querying)
+    - [Introduction to find](#introduction-to-find)
 
 <!-- /TOC -->
 
@@ -1003,20 +1007,35 @@ Use `$addToSet` to add elements in to array, and make sure uniqueness. `$addToSe
                 }
         ]
 }
-> db.blog.posts.update({}, {"$inc" : {"comments.0.votes" : 20}})
-WriteResult({ "nMatched" : 1, "nUpserted" : 0, "nModified" : 1 })
-> db.blog.posts.update({}, {"$inc" : {"comments.$.votes" : 20}})
-WriteResult({
-        "nMatched" : 0,
-        "nUpserted" : 0,
-        "nModified" : 0,
-        "writeError" : {
-                "code" : 16837,
-                "errmsg" : "The positional operator did not find the match needed from the query. Unexpanded update: comments.$.votes"
+> db.blog.posts.updateOne({}, {"$inc" : {"comments.0.votes" : 20}})
+{ "acknowledged" : true, "matchedCount" : 1, "modifiedCount" : 1 }
+> db.blog.posts.updateOne({}, {"$inc" : {"comments.$.votes" : 20}})
+2017-08-10T11:07:41.428+0800 E QUERY    [thread1] WriteError: The positional operator did not find the match needed from the query. Unexpanded update: comments.$.votes :
+WriteError({
+        "index" : 0,
+        "code" : 16837,
+        "errmsg" : "The positional operator did not find the match needed from the query. Unexpanded update: comments.$.votes",
+        "op" : {
+                "q" : {
+
+                },
+                "u" : {
+                        "$inc" : {
+                                "comments.$.votes" : 20
+                        }
+                },
+                "multi" : false,
+                "upsert" : false
         }
 })
-> db.blog.posts.update({"comments.author" : "Alice"}, {"$inc" : {"comments.$.votes" : 20}})
-WriteResult({ "nMatched" : 1, "nUpserted" : 0, "nModified" : 1 })
+WriteError@src/mongo/shell/bulk_api.js:469:48
+Bulk/mergeBatchResults@src/mongo/shell/bulk_api.js:836:49
+Bulk/executeBatch@src/mongo/shell/bulk_api.js:906:13
+Bulk/this.execute@src/mongo/shell/bulk_api.js:1150:21
+DBCollection.prototype.updateOne@src/mongo/shell/crud_api.js:550:17
+@(shell):1:1
+> db.blog.posts.updateOne({"comments.author" : "Alice"}, {"$inc" : {"comments.$.votes" : 20}})
+{ "acknowledged" : true, "matchedCount" : 1, "modifiedCount" : 1 }
 > db.blog.posts.findOne()
 {
         "_id" : ObjectId("4b329a216cc613d5ee930192"),
@@ -1088,3 +1107,54 @@ save is a shell function that lets you insert a document if it doesn’t exist a
 ```
 
 Without save, the last line would have been a more cumbersome `db.testcol.updateOne({"_id" : x._id}, x)`.
+
+##### Updating Multiple Documents
+
+Use updateMany to update multiple documents.
+
+```javascript
+> db.users.insertMany([{birthday: "10/13/1978"}, {birthday: "10/13/1978"}, {birthday: "10/13/1978"}])
+{
+        "acknowledged" : true,
+        "insertedIds" : [
+                ObjectId("598bccd30f1f693b5af9b470"),
+                ObjectId("598bccd30f1f693b5af9b471"),
+                ObjectId("598bccd30f1f693b5af9b472")
+        ]
+}
+> db.users.find()
+{ "_id" : ObjectId("4b2b9f67a1f631733d917a7a"), "relatioships" : { "friends" : 32, "emenies" : 2 }, "username" : "joe" }
+{ "_id" : ObjectId("598bccd30f1f693b5af9b470"), "birthday" : "10/13/1978" }
+{ "_id" : ObjectId("598bccd30f1f693b5af9b471"), "birthday" : "10/13/1978" }
+{ "_id" : ObjectId("598bccd30f1f693b5af9b472"), "birthday" : "10/13/1978" }
+> db.users.updateMany({"birthday" : "10/13/1978"}, {"$set" : {"gift" : "Happy Birthday!"}})
+{ "acknowledged" : true, "matchedCount" : 3, "modifiedCount" : 3 }
+> db.users.find()
+{ "_id" : ObjectId("4b2b9f67a1f631733d917a7a"), "relatioships" : { "friends" : 32, "emenies" : 2 }, "username" : "joe" }
+{ "_id" : ObjectId("598bccd30f1f693b5af9b470"), "birthday" : "10/13/1978", "gift" : "Happy Birthday!" }
+{ "_id" : ObjectId("598bccd30f1f693b5af9b471"), "birthday" : "10/13/1978", "gift" : "Happy Birthday!" }
+{ "_id" : ObjectId("598bccd30f1f693b5af9b472"), "birthday" : "10/13/1978", "gift" : "Happy Birthday!" }
+>
+```
+
+##### Returning Updated Documents
+
+MongoDB 3.2 introduced three new collection methods to the shell to accommodate the functionality of findAndModify but with semantics that are easier to learn and remember. These methods are: `findOneAndDelete`, `findOneAndReplace`, and `findOneAndUpdate`. The primary difference between these methods and, for example, `updateOne` is that they enable you to atomically get the value of a modified document.
+
+Instead of using 2 steps `find` and `updateOne`, `findOneAndUpdate` make sure the atomicity without race condition.
+
+```javascript
+> db.processes.findOneAndUpdate({"status" : "READY"},
+... {"$set" : {"status" : "RUNNING"}},
+... {"sort" : {"priority" : -1},
+...  "returnNewDocument": true})
+{
+    "_id" : ObjectId("4b3e7a18005cab32be6291f7"),
+    "priority" : 1,
+    "status" : "RUNNING"
+}
+```
+
+## Chapter 4. Querying
+
+### Introduction to find
